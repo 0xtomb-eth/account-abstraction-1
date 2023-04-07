@@ -9,7 +9,7 @@ import { IWillBase } from "../interfaces/IWillBase.sol";
 import { SimpleAccount } from "../samples/SimpleAccount.sol";
 import { IEntryPoint } from "../interfaces/IEntryPoint.sol";
 
-contract WillBase is IWillBase, SimpleAccount {
+contract WillAccount is IWillBase, SimpleAccount {
     using EnumerableSet for EnumerableSet.AddressSet;
     using EnumerableMap for EnumerableMap.AddressToUintMap;
 
@@ -32,6 +32,12 @@ contract WillBase is IWillBase, SimpleAccount {
         bool acknowledged
     );
 
+    event TransferFailed(
+        address indexed assetAddr,
+        address indexed beneficiary,
+        uint256 percentage
+    );
+
     // asset address => allocation
     mapping (address => StructsLibrary.Allocation) allocations;
     EnumerableSet.AddressSet userAssets;
@@ -40,14 +46,17 @@ contract WillBase is IWillBase, SimpleAccount {
     // death ack
     StructsLibrary.DeathAck deathAck;
 
-    constructor(IEntryPoint anEntryPoint, address _owner)
+    constructor(IEntryPoint anEntryPoint)
         SimpleAccount(anEntryPoint)
     {
-        initialize(_owner);
+    }
+
+    function initialize(address anOwner) public override initializer {
+        super._initialize(anOwner);
     }
     
     function setAllocation(address asset, address[] calldata beneficiaries, uint256[] calldata percentages) external virtual {
-        _allocationValidityCheck;
+        _allocationValidityCheck(beneficiaries, percentages);
 
         StructsLibrary.Allocation storage allocation = allocations[asset];
         if (allocation.beneficiaries.length == 0) {
@@ -85,19 +94,21 @@ contract WillBase is IWillBase, SimpleAccount {
             deathAck.validatorAcks.set(msg.sender, 0);
             emit DeathAcknowledged(msg.sender, false);
         }
-        
+
         if (_checkDeath()) {
             for (uint256 i=0; i < userAssets.length(); i++) {
                 address assetAddr = userAssets.at(i);
                 address[] memory beneficiaries = allocations[assetAddr].beneficiaries;
                 uint256[] memory percentages = allocations[assetAddr].percentages;
-                for (i=0; i<beneficiaries.length; i++) {
-                    IERC20(assetAddr).transferFrom(owner, beneficiaries[i], percentages[i]);
+                for (uint256 j=0; j<beneficiaries.length; j++) {
+                    try IERC20(assetAddr).transferFrom(owner, beneficiaries[j], percentages[j]) {
+                    } catch {
+                        emit TransferFailed(assetAddr, beneficiaries[j], percentages[j]);
+                    }
                 }                
             }
             emit WillExecuted();
         }
-
     }
 
     /// view functions below ////
@@ -131,7 +142,13 @@ contract WillBase is IWillBase, SimpleAccount {
     }
 
     function _checkDeath() internal view returns(bool) {
-        return (deathAck.VotingThreshold < deathAck.validatorAcks.length());
+        uint256 confirmedValidatorCount = 0;
+        for (uint256 i = 0; i < deathAck.validators.length(); i++) {
+            if (_getAckStatus(deathAck.validators.at(i))) {
+                confirmedValidatorCount++;
+            }
+        }
+        return (deathAck.VotingThreshold <= confirmedValidatorCount);
     }
 
     function _allocationValidityCheck(address[] calldata beneficiaries, uint256[] calldata percentages) internal pure {

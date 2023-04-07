@@ -24,6 +24,9 @@ function getNetwork1 (url: string): { url: string, accounts: string[] } {
 }
 
 function getNetwork (name: string): { url: string, accounts: string[] } {
+  if (name === 'mumbai') {
+    return getNetwork1(`https://polygon-mumbai.g.alchemy.com/v2/${process.env.ALCHEMY_ID}`)
+  }
   return getNetwork1(`https://${name}.infura.io/v3/${process.env.INFURA_ID}`)
   // return getNetwork1(`wss://${name}.infura.io/ws/v3/${process.env.INFURA_ID}`);
 }
@@ -58,6 +61,7 @@ const config: HardhatUserConfig = {
     localgeth: { url: 'http://localgeth:8545' },
     goerli: getNetwork('goerli'),
     sepolia: getNetwork('sepolia'),
+    mumbai: getNetwork('mumbai'),
     proxy: getNetwork1('http://localhost:8545')
   },
   mocha: {
