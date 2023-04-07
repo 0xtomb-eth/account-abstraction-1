@@ -8,17 +8,17 @@ interface IWillBase {
 
     function setDeathValidators(address[] calldata validators, uint256 votingThreshold) external;
 
-    function ackDeath(address addr, bool ack) external;
+    function ackDeath(bool ack) external;
 
-    function getAllocationAssets(address addr) external view returns(address[] memory assets);
+    function getAllocationAssets() external view returns(address[] memory assets);
 
-    function getAllocation(address addr, address asset) external view returns (StructsLibrary.Allocation memory);
+    function getAllocation(address asset) external view returns (StructsLibrary.Allocation memory);
 
-    function getValidators(address addr) external view returns (address[] memory validators);
+    function getValidators() external view returns (address[] memory validators);
 
-    function getVotingThreshold(address addr) external view returns (uint256);
+    function getVotingThreshold() external view returns (uint256);
 
-    function checkDeath(address addr) external view returns(bool);
+    function checkDeath() external view returns(bool);
 
-    function getWillStatus(address addr) external view returns(bool);    
+    function getWillStatus() external view returns(bool);    
 }
