@@ -48,14 +48,14 @@ contract WillAccount is IWillBase, SimpleAccount {
 
     constructor(IEntryPoint anEntryPoint)
         SimpleAccount(anEntryPoint)
-    {
-    }
+    {}
 
     function initialize(address anOwner) public override initializer {
         super._initialize(anOwner);
     }
     
     function setAllocation(address asset, address[] calldata beneficiaries, uint256[] calldata percentages) external virtual {
+        _requireFromEntryPointOrOwner();
         _allocationValidityCheck(beneficiaries, percentages);
 
         StructsLibrary.Allocation storage allocation = allocations[asset];
@@ -70,6 +70,8 @@ contract WillAccount is IWillBase, SimpleAccount {
     }
 
     function setDeathValidators(address[] calldata validators, uint256 votingThreshold) external {
+        _requireFromEntryPointOrOwner();
+        
         // clear
         uint256 length = deathAck.validatorAcks.length();
         EnumerableSet.AddressSet storage _validators = deathAck.validators;
@@ -160,5 +162,4 @@ contract WillAccount is IWillBase, SimpleAccount {
         }
         require(sumPercentages == 100, "Total percentages must equal 100");
     }
-
 }
