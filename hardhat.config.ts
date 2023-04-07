@@ -6,22 +6,26 @@ import '@nomiclabs/hardhat-etherscan'
 
 import 'solidity-coverage'
 
-import * as fs from 'fs'
+// import * as fs from 'fs'
+import dotenv from 'dotenv'
+dotenv.config()
 
-const mnemonicFileName = process.env.MNEMONIC_FILE ?? `${process.env.HOME}/.secret/testnet-mnemonic.txt`
-let mnemonic = 'test '.repeat(11) + 'junk'
-if (fs.existsSync(mnemonicFileName)) { mnemonic = fs.readFileSync(mnemonicFileName, 'ascii') }
+const privateKey = process.env.PRIVATE_KEY as string
 
-function getNetwork1 (url: string): { url: string, accounts: { mnemonic: string } } {
+// const mnemonicFileName = process.env.MNEMONIC_FILE ?? `${process.env.HOME}/.secret/testnet-mnemonic.txt`
+// let mnemonic = 'test '.repeat(11) + 'junk'
+// if (fs.existsSync(mnemonicFileName)) { mnemonic = fs.readFileSync(mnemonicFileName, 'ascii') }
+
+function getNetwork1 (url: string): { url: string, accounts: string[] } {
   return {
     url,
-    accounts: { mnemonic }
+    accounts: [privateKey]
   }
 }
 
-function getNetwork (name: string): { url: string, accounts: { mnemonic: string } } {
+function getNetwork (name: string): { url: string, accounts: string[] } {
   return getNetwork1(`https://${name}.infura.io/v3/${process.env.INFURA_ID}`)
-  // return getNetwork1(`wss://${name}.infura.io/ws/v3/${process.env.INFURA_ID}`)
+  // return getNetwork1(`wss://${name}.infura.io/ws/v3/${process.env.INFURA_ID}`);
 }
 
 const optimizedComilerSettings = {
