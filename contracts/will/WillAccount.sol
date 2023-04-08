@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
@@ -92,24 +92,25 @@ contract WillAccount is IWillBase, SimpleAccount {
         if (ack) {
             deathAck.validatorAcks.set(msg.sender, 1);
             emit DeathAcknowledged(msg.sender, true);
+            if (_checkDeath()) {
+                for (uint256 i=0; i < userAssets.length(); i++) {
+                    address assetAddr = userAssets.at(i);
+                    address[] memory beneficiaries = allocations[assetAddr].beneficiaries;
+                    uint256[] memory percentages = allocations[assetAddr].percentages;
+                    uint256 balance = IERC20(assetAddr).balanceOf(owner);
+                    for (uint256 j=0; j<beneficiaries.length; j++) {
+                        try IERC20(assetAddr).transferFrom(owner, beneficiaries[j], percentages[j] * balance) {
+                        } catch {
+                            emit TransferFailed(assetAddr, beneficiaries[j], percentages[j] * balance);
+                        }
+                    }                
+                }
+                willStatus = true;
+                emit WillExecuted();
+            }
         } else {
             deathAck.validatorAcks.set(msg.sender, 0);
             emit DeathAcknowledged(msg.sender, false);
-        }
-
-        if (_checkDeath()) {
-            for (uint256 i=0; i < userAssets.length(); i++) {
-                address assetAddr = userAssets.at(i);
-                address[] memory beneficiaries = allocations[assetAddr].beneficiaries;
-                uint256[] memory percentages = allocations[assetAddr].percentages;
-                for (uint256 j=0; j<beneficiaries.length; j++) {
-                    try IERC20(assetAddr).transferFrom(owner, beneficiaries[j], percentages[j]) {
-                    } catch {
-                        emit TransferFailed(assetAddr, beneficiaries[j], percentages[j]);
-                    }
-                }                
-            }
-            emit WillExecuted();
         }
     }
 
@@ -140,7 +141,12 @@ contract WillAccount is IWillBase, SimpleAccount {
     }
 
     function _getAckStatus(address validatorAddr) internal view returns(bool) {
-        return (deathAck.validatorAcks.get(validatorAddr) > 0);
+        (bool success, uint256 ack) = deathAck.validatorAcks.tryGet(validatorAddr);
+        if (success) {
+            return(ack > 0);
+        } else {
+            return false;
+        }
     }
 
     function _checkDeath() internal view returns(bool) {
