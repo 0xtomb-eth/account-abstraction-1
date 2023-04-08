@@ -87,8 +87,9 @@ contract WillAccount is IWillBase, SimpleAccount {
         emit DeathValidatorsSet(validators, votingThreshold);
     }
 
-    function ackDeath(bool ack) external {
-        require(deathAck.validators.contains(msg.sender));
+    function ackDeath(bool ack) external payable {
+        require(deathAck.validators.contains(msg.sender), "Not Validator");
+        require(!willStatus, "Will already executed");
         if (ack) {
             deathAck.validatorAcks.set(msg.sender, 1);
             emit DeathAcknowledged(msg.sender, true);
@@ -101,7 +102,7 @@ contract WillAccount is IWillBase, SimpleAccount {
                     for (uint256 j=0; j<beneficiaries.length; j++) {
                         try IERC20(assetAddr).transferFrom(owner, beneficiaries[j], percentages[j] * balance) {
                         } catch {
-                            emit TransferFailed(assetAddr, beneficiaries[j], percentages[j] * balance);
+                            emit TransferFailed(assetAddr, beneficiaries[j], percentages[j] * balance / 100);
                         }
                     }                
                 }
@@ -128,6 +129,10 @@ contract WillAccount is IWillBase, SimpleAccount {
         return deathAck.validators.values();
     }
 
+    function getAckCount() external view returns (uint256) {
+        return _getAckCount();
+    }
+
     function getVotingThreshold() external view returns (uint256) {
         return deathAck.VotingThreshold;
     }
@@ -150,13 +155,8 @@ contract WillAccount is IWillBase, SimpleAccount {
     }
 
     function _checkDeath() internal view returns(bool) {
-        uint256 confirmedValidatorCount = 0;
-        for (uint256 i = 0; i < deathAck.validators.length(); i++) {
-            if (_getAckStatus(deathAck.validators.at(i))) {
-                confirmedValidatorCount++;
-            }
-        }
-        return (deathAck.VotingThreshold <= confirmedValidatorCount);
+        uint256 ackCount = _getAckCount();
+        return (deathAck.VotingThreshold <= ackCount);
     }
 
     function _allocationValidityCheck(address[] calldata beneficiaries, uint256[] calldata percentages) internal pure {
@@ -167,5 +167,15 @@ contract WillAccount is IWillBase, SimpleAccount {
             sumPercentages += percentages[j];
         }
         require(sumPercentages == 100, "Total percentages must equal 100");
+    }
+
+    function _getAckCount() internal view returns (uint256) {
+        uint256 confirmedValidatorCount = 0;
+        for (uint256 i = 0; i < deathAck.validators.length(); i++) {
+            if (_getAckStatus(deathAck.validators.at(i))) {
+                confirmedValidatorCount++;
+            }
+        }
+        return confirmedValidatorCount;
     }
 }

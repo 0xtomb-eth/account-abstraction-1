@@ -8,7 +8,7 @@ interface IWillBase {
 
     function setDeathValidators(address[] calldata validators, uint256 votingThreshold) external;
 
-    function ackDeath(bool ack) external;
+    function ackDeath(bool ack) external payable;
 
     function getAllocationAssets() external view returns(address[] memory assets);
 
